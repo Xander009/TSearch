@@ -1,0 +1,14 @@
+{
+  "type": "code",
+  "modid": "tsearch",
+  "name": "TSearch",
+  "description": "Press T while hovering an item to highlight nearby containers that hold it. Highlights are visible through walls, and the camera snaps to the nearest match. Inspired by NEI's item-highlight feature from GregTech: New Horizons.",
+  "authors": ["Alex"],
+  "version": "2.0.0",
+  "dependencies": {
+    "game": "1.22.5"
+  },
+  "side": "client",
+  "requiredOnClient": true,
+  "requiredOnServer": false
+}
