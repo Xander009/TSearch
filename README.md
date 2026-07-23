@@ -1,28 +1,26 @@
 # TSearch
 
-A **client-side** Vintage Story mod. Hover an item and press **T** to highlight
-every nearby container that holds it — with highlights that show **through walls**
-and a camera that **snaps to the nearest match**.
+A clientside Vintage Story mod. Hover an item and press T to highlight
+every nearby container that holds it with highlights that show through walls
+and a camera that snaps to the nearest match.
 
-Inspired by the NEI item-highlight feature from the *GregTech: New Horizons*
-Minecraft modpack. TSearch is the successor to the original *InvSearch* mod.
+Inspired by the NEI item highlight feature from the GregTech: New Horizons (FindIt)
+Minecraft modpack. TSearch is the successor to my original InvSearch mod.
 
-Targets **Vintage Story 1.22.5** (.NET 10).
+Targets Vintage Story 1.22.5 (.NET 10).
 
 ## Features
 
-- Press **T** while hovering an item in your inventory, hotbar, an open container,
+- Press T while hovering an item in your inventory, hotbar, an open container,
   your hand, or a Survival Handbook item page to scan nearby containers.
-- Matching containers get a **see-through highlight** (translucent box + bright
-  outline) rendered through walls via a small custom shader with depth testing
-  disabled — the engine's own highlight can't do this.
-- If a container GUI is open, the **matching slot inside it is highlighted** too.
-- On a successful search the camera **snaps toward the nearest container**
+- Matching containers get a seethrough highlight rendered through walls via a small custom shader
+- If a container GUI is open, the matching slot inside it is highlighted too.
+- On a successful search the camera snaps toward the nearest container
   (always the nearest, even with multiple results); open windows are closed first
   for a clear view, and a snap sound plays.
-- Highlights **auto-clear** after a timeout, when you walk away, or on pressing **T** again.
-- Hotkey is **rebindable** in Options → Controls.
-- Everything tunable via a JSON config (see below).
+- Highlights auto-clear after a timeout, when you walk away, or on pressing T again.
+- Hotkey is rebindable in Options -> Controls.
+- Everything tunable via a JSON config.
 
 ## Building
 
@@ -30,20 +28,13 @@ Targets **Vintage Story 1.22.5** (.NET 10).
 build.bat
 ```
 
-or
-
-```bat
-dotnet build /p:GameDirectory="C:\Users\kanit\AppData\Roaming\Vintagestory"
-```
-
 On a successful build the mod is zipped and copied straight into your
-`VintagestoryData\Mods` folder. `VSSurvivalMod.dll` is referenced from
-`GameDirectory\Mods\` for Survival Handbook support.
+`VintagestoryData\Mods` folder.
 
 ## Configuration
 
-Edit `VintagestoryData\ModConfig\tsearch.json` (created on first run). Colors are
-RGBA arrays, each channel `0-255`.
+Edit `VintagestoryData\ModConfig\tsearch.json` 
+Colors are RGBA arrays, each channel `0-255`.
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -63,9 +54,9 @@ RGBA arrays, each channel `0-255`.
 
 ## Notes / limitations
 
-- The **slot** highlight color inside open GUIs is fixed by the engine's GUI
+- The slot highlight color inside open GUIs is fixed by the engine's GUI
   renderer and isn't configurable (only the world highlights are).
-- The Survival Handbook source works on **item detail pages** only, not on search
+- The Survival Handbook source works on item detail pages only, not on search
   results or text/guide pages.
 - Reads a few private/internal fields via reflection (`GuiComposer`,
   `GuiDialogHandbook`), so a future VS update that renames them could break the
