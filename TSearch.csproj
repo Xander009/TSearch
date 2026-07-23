@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <AssemblyName>TSearch</AssemblyName>
+    <RootNamespace>TSearch</RootNamespace>
+    <Optimize>true</Optimize>
+    <LangVersion>latest</LangVersion>
+
+    <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Vintagestory</GameDirectory>
+    <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/vintagestory</GameDirectory>
+    <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/vintagestory</GameDirectory>
+
+    <ModOutputDir Condition="'$(ModOutputDir)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">$(APPDATA)\VintagestoryData\Mods</ModOutputDir>
+    <ModOutputDir Condition="'$(ModOutputDir)' == '' And $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.config/VintagestoryData/Mods</ModOutputDir>
+    <ModOutputDir Condition="'$(ModOutputDir)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/VintagestoryData/Mods</ModOutputDir>
+
+    <UseLocalGameDlls Condition="'$(UseLocalGameDlls)' == '' And Exists('$(GameDirectory)\VintagestoryAPI.dll')">true</UseLocalGameDlls>
+    <UseLocalGameDlls Condition="'$(UseLocalGameDlls)' == ''">false</UseLocalGameDlls>
+  </PropertyGroup>
+
+  <!-- Option A: local game install (preferred) -->
+  <ItemGroup Condition="'$(UseLocalGameDlls)' == 'true'">
+    <Reference Include="VintagestoryAPI">
+      <HintPath>$(GameDirectory)\VintagestoryAPI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="VintagestoryLib">
+      <HintPath>$(GameDirectory)\VintagestoryLib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <!-- VSSurvivalMod.dll lives in the Mods subfolder; needed for Survival Handbook support -->
+    <Reference Include="VSSurvivalMod">
+      <HintPath>$(GameDirectory)\Mods\VSSurvivalMod.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Option B: NuGet stubs for CI (no local game install) -->
+  <ItemGroup Condition="'$(UseLocalGameDlls)' != 'true'">
+    <PackageReference Include="VintagestoryAPI" Version="1.22.*" />
+    <PackageReference Include="VSSurvivalMod" Version="1.22.*" />
+  </ItemGroup>
+
+  <Target Name="PackMod" AfterTargets="Build">
+    <MakeDir Directories="$(ModOutputDir)" Condition="!Exists('$(ModOutputDir)')" />
+    <Exec
+      Condition="$([MSBuild]::IsOSPlatform('Windows'))"
+      Command="powershell -NoProfile -Command &quot;Compress-Archive -Force -Path '$(OutputPath)$(AssemblyName).dll','resources\modinfo.json' -DestinationPath '$(ModOutputDir)\$(AssemblyName).zip'&quot;"
+    />
+    <Exec
+      Condition="!$([MSBuild]::IsOSPlatform('Windows'))"
+      Command="cd '$(MSBuildProjectDirectory)' &amp;&amp; zip -j '$(ModOutputDir)/$(AssemblyName).zip' '$(OutputPath)$(AssemblyName).dll' resources/modinfo.json"
+    />
+    <Message Text="=== TSearch installed to $(ModOutputDir)/$(AssemblyName).zip ===" Importance="High" />
+  </Target>
+
+</Project>
