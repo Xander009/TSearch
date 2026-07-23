@@ -1,5 +1,5 @@
 #nullable disable
-namespace TSearch
+namespace TSearch 
 {
     public class TSearchConfig
     {
