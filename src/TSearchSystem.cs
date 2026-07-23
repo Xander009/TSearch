@@ -10,16 +10,9 @@ using Vintagestory.GameContent;
 
 namespace TSearch
 {
-    /// <summary>
-    /// Client-only mod. Press T while hovering an item (inventory, hotbar, open
-    /// container, hand, or Survival Handbook page) to highlight every nearby
-    /// container holding that item. Highlights render through walls and the
-    /// camera snaps toward the nearest match. Press T again to clear.
-    /// Ported and expanded from the original InvSearch mod.
-    /// </summary>
     public class TSearchSystem : ModSystem
     {
-        private const int HighlightSlotId = 77; // engine-highlight channel for the fallback path
+        private const int HighlightSlotId = 77;
 
         private ICoreClientAPI capi;
         private TSearchConfig config;
@@ -32,13 +25,11 @@ namespace TSearch
 
         private readonly List<GuiElementItemSlotGridBase> highlightedSlotGrids = new();
 
-        // GuiComposer element dictionaries are still private in 1.22 — reflection needed.
         private static readonly FieldInfo fInteractiveElements = typeof(GuiComposer)
             .GetField("interactiveElements", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo fStaticElements = typeof(GuiComposer)
             .GetField("staticElements", BindingFlags.NonPublic | BindingFlags.Instance);
 
-        // GuiDialogHandbook / BrowseHistoryElement reflection (VSSurvivalMod internals).
         private static readonly FieldInfo fBrowseHistory = typeof(GuiDialogHandbook)
             .GetField("browseHistory", BindingFlags.NonPublic | BindingFlags.Instance);
         private static readonly FieldInfo fBrowseHistoryPage = typeof(GuiDialogHandbook)
@@ -149,8 +140,6 @@ namespace TSearch
             return matched;
         }
 
-        // ---------------- container highlighting ----------------
-
         private void ApplyContainerHighlights(List<BlockPos> positions)
         {
             if (config.SeeThrough && renderer.ShaderReady)
@@ -159,7 +148,6 @@ namespace TSearch
                 return;
             }
 
-            // Fallback: plain engine highlight (depth-tested, not see-through).
             var pairs = new List<BlockPos>();
             var colors = new List<int>();
             int color = config.EdgeColorRgba();
@@ -187,8 +175,6 @@ namespace TSearch
                 EnumHighlightShape.Cubes
             );
         }
-
-        // ---------------- slot highlighting in open GUIs ----------------
 
         private IEnumerable<GuiElementItemSlotGridBase> GetAllSlotGrids()
         {
@@ -242,8 +228,6 @@ namespace TSearch
             highlightedSlotGrids.Clear();
         }
 
-        // ---------------- camera snap ----------------
-
         private static BlockPos FindNearest(List<BlockPos> positions, BlockPos from)
         {
             BlockPos nearest = null;
@@ -264,8 +248,6 @@ namespace TSearch
             IClientPlayer player = capi.World.Player;
             EntityPlayer entity = player.Entity;
 
-            // Ray origin = the actual camera position. Fall back to eye height if it
-            // hasn't been populated yet (e.g. very first frame).
             Vec3d eyePos = entity.CameraPos;
             if (eyePos == null || (eyePos.X == 0 && eyePos.Y == 0 && eyePos.Z == 0))
                 eyePos = entity.Pos.XYZ.Add(0, entity.LocalEyePos.Y, 0);
@@ -277,12 +259,6 @@ namespace TSearch
             dir.X /= len; dir.Y /= len; dir.Z /= len;
 
             float yaw = (float)Math.Atan2(dir.X, dir.Z);
-
-            // VS look-pitch convention (measured in-game): straight up = π/2, horizon = π, straight
-            // down = 3π/2. So the pitch that looks along a direction of elevation e = asin(dir.Y) is
-            // (π - e). Feeding a plain asin(dir.Y) (range ±π/2) lands outside the valid [π/2, 3π/2]
-            // band and clamps to the up limit — which is why it used to snap straight up. Vertical
-            // is driven by the entity's Pos.Pitch; yaw stays on CameraYaw (Pos.Yaw differs).
             float elevation = (float)Math.Asin(GameMath.Clamp((float)dir.Y, -1f, 1f));
             float lookPitch = (float)Math.PI - elevation;
 
@@ -294,7 +270,6 @@ namespace TSearch
 
         private void CloseOpenDialogs()
         {
-            // Copy first — TryClose mutates OpenedGuis. Only close real windows, never HUD elements.
             var open = new List<GuiDialog>(capi.Gui.OpenedGuis);
             foreach (GuiDialog dialog in open)
             {
@@ -302,19 +277,14 @@ namespace TSearch
                 if (dialog.DialogType != EnumDialogType.Dialog) continue;
                 try { dialog.TryClose(); } catch { }
             }
-            // Slots live inside those windows; once closed the highlights are gone anyway.
             ClearSlotHighlights();
         }
 
-        // ---------------- hovered item resolution ----------------
-
         private ItemStack GetHoveredItemStack()
         {
-            // 1. Mouse cursor
             ItemSlot mouseSlot = capi.World.Player.InventoryManager.MouseItemSlot;
             if (mouseSlot?.Itemstack != null) return mouseSlot.Itemstack;
 
-            // 2. Hovered slot in an open GUI (hoverSlotId / hoverInv are public in 1.22)
             foreach (GuiElementItemSlotGridBase slotGrid in GetAllSlotGrids())
             {
                 int hoverId = slotGrid.hoverSlotId;
@@ -325,11 +295,9 @@ namespace TSearch
                 if (slot?.Itemstack != null) return slot.Itemstack;
             }
 
-            // 3. Currently viewed item page in the Survival Handbook
             ItemStack handbookStack = GetHandbookHoveredStack();
             if (handbookStack != null) return handbookStack;
 
-            // 4. Active hand (opt-in)
             if (config.SearchFromHand)
                 return capi.World.Player.Entity.ActiveHandItemSlot?.Itemstack;
 
@@ -362,8 +330,6 @@ namespace TSearch
             return null;
         }
 
-        // ---------------- lifecycle ----------------
-
         private void OnTick(float dt)
         {
             if (!isHighlighting) return;
@@ -377,9 +343,6 @@ namespace TSearch
             if (lastPlayerPos != null)
             {
                 BlockPos cur = capi.World.Player.Entity.Pos.AsBlockPos;
-                // Don't clear while the player is still inside the area they searched — otherwise
-                // walking toward a highlighted container (up to ScanRange away) clears it almost
-                // immediately. Effective threshold is at least the scan range.
                 double clearDist = Math.Max(config.ClearDistanceBlocks, config.ScanRange);
                 double clearSq = clearDist * clearDist;
                 if (cur.DistanceSqTo(lastPlayerPos.X, lastPlayerPos.Y, lastPlayerPos.Z) > clearSq)
