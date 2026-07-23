@@ -162,7 +162,7 @@ uniform vec3 origin;
 
 void main(void)
 {
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(vertexPositionIn + origin, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(vertexPositionIn + origin, 1.0); 
     gl_Position.w += 0.0006;
 }
 ";
