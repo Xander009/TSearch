@@ -20,7 +20,6 @@
     <UseLocalGameDlls Condition="'$(UseLocalGameDlls)' == ''">false</UseLocalGameDlls>
   </PropertyGroup>
 
-  <!-- Option A: local game install (preferred) -->
   <ItemGroup Condition="'$(UseLocalGameDlls)' == 'true'">
     <Reference Include="VintagestoryAPI">
       <HintPath>$(GameDirectory)\VintagestoryAPI.dll</HintPath>
@@ -30,14 +29,12 @@
       <HintPath>$(GameDirectory)\VintagestoryLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- VSSurvivalMod.dll lives in the Mods subfolder; needed for Survival Handbook support -->
     <Reference Include="VSSurvivalMod">
       <HintPath>$(GameDirectory)\Mods\VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>
 
-  <!-- Option B: NuGet stubs for CI (no local game install) -->
   <ItemGroup Condition="'$(UseLocalGameDlls)' != 'true'">
     <PackageReference Include="VintagestoryAPI" Version="1.22.*" />
     <PackageReference Include="VSSurvivalMod" Version="1.22.*" />
