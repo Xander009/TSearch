@@ -1,3 +1,3 @@
 @echo off
-dotnet build /p:GameDirectory="C:\Users\kanit\AppData\Roaming\Vintagestory"
+dotnet build
 pause
