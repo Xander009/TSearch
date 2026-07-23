@@ -1,5 +1,7 @@
 # TSearch
 
+**This mod was built with the assistance of AI.**  The code was developed collaboratively with AI throughout the entire process.
+
 A clientside Vintage Story mod. Hover an item and press T to highlight
 every nearby container that holds it with highlights that show through walls
 and a camera that snaps to the nearest match.
