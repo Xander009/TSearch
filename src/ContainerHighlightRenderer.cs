@@ -18,11 +18,7 @@ namespace TSearch
         private MeshRef fillMesh;
         private MeshRef edgeMesh;
         private readonly Matrixf modelMat = new();
-
-        // Per block id: the tessellated shape mesh, or null => render its selection boxes instead
-        // (used for containers that tessellate to a placeholder full cube, e.g. the reed basket).
         private readonly Dictionary<int, MeshRef> shapeCache = new();
-
         private volatile List<BlockPos> positions = new();
 
         public double RenderOrder => 0.5;
@@ -124,7 +120,6 @@ namespace TSearch
                 return;
             }
 
-            // Placeholder-cube container (e.g. reed basket): fall back to its fitted selection boxes.
             Cuboidf[] boxes = block?.GetSelectionBoxes(ba, bp);
             if (boxes == null || boxes.Length == 0)
             {
@@ -175,8 +170,6 @@ namespace TSearch
             return result;
         }
 
-        // A mesh that fills the whole 0..1 block is almost always a placeholder for a container
-        // whose real shape is drawn by a block-entity renderer; use selection boxes for those.
         private static bool IsFullBlock(MeshData md)
         {
             float[] xyz = md.xyz;
