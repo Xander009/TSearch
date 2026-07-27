@@ -8,7 +8,7 @@
     <Optimize>true</Optimize>
     <LangVersion>latest</LangVersion>
 
-    <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">C:\Program Files (x86)\Vintagestory</GameDirectory>
+    <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('Windows'))">$(APPDATA)\Vintagestory</GameDirectory>
     <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('Linux'))">$(HOME)/.local/share/vintagestory</GameDirectory>
     <GameDirectory Condition="'$(GameDirectory)' == '' And $([MSBuild]::IsOSPlatform('OSX'))">$(HOME)/Library/Application Support/vintagestory</GameDirectory>
 

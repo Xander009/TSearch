@@ -142,7 +142,7 @@ namespace TSearch
 
         private void ApplyContainerHighlights(List<BlockPos> positions)
         {
-            if (config.SeeThrough && renderer.ShaderReady)
+            if (config.SeeThrough && renderer.CanRender)
             {
                 renderer.SetPositions(positions);
                 return;
@@ -259,8 +259,7 @@ namespace TSearch
             dir.X /= len; dir.Y /= len; dir.Z /= len;
 
             float yaw = (float)Math.Atan2(dir.X, dir.Z);
-            float elevation = (float)Math.Asin(GameMath.Clamp((float)dir.Y, -1f, 1f));
-            float lookPitch = (float)Math.PI - elevation;
+            float lookPitch = (float)Math.PI; // level with the horizon (VS pitch: horizon = pi)
 
             player.CameraYaw = yaw;
             player.CameraPitch = lookPitch;
