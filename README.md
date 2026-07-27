@@ -45,14 +45,16 @@ Colors are RGBA arrays, each channel `0-255`.
 | `HighlightDurationMs` | `10000` | Auto-clear timeout |
 | `ClearDistanceBlocks` | `6` | Auto-clear once you walk this far from the search origin (effective threshold is at least `ScanRange`, so highlights survive while you walk to a container you just found) |
 | `SearchFromHand` | `false` | Count an item held in your active hand as a search target when nothing is hovered |
+| `HighlightStyle` | `glow` | `glow` = container's fitted shape glows in `GlowColor`; `box` = full-block see-through outline/box |
 | `SeeThrough` | `true` | Draw highlights through walls (custom renderer). `false` = plain engine highlight |
 | `SnapCameraToNearest` | `true` | Snap camera to nearest match on search |
 | `CloseGuisOnSnap` | `true` | Close open windows before snapping |
 | `PlaySound` | `true` | Play a sound on a successful search |
 | `ChatFeedback` | `true` | Print "Found N container(s)…" chat messages |
-| `EdgeColor` | `[255,165,0,255]` | Outline color (RGBA) |
-| `FillColor` | `[255,165,0,60]` | Box fill color (RGBA) |
-| `Glow` | `0.9` | Extra glow (0–1) so highlights stay visible in the dark |
+| `EdgeColor` | `[255,165,0,255]` | Box-style outline color (RGBA) |
+| `FillColor` | `[255,165,0,60]` | Box-style fill color (RGBA) |
+| `GlowColor` | `[255,165,0,130]` | Glow-style color (RGBA) — matched containers glow this color (4th value = fill opacity) |
+| `Glow` | `0.9` | Glow intensity (0–1) so highlights stay visible in the dark |
 
 ## Notes / limitations
 

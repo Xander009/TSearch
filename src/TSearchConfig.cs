@@ -13,6 +13,8 @@ namespace TSearch
 
         public bool SearchFromHand = false;
 
+        public string HighlightStyle = "glow";
+
         public bool SeeThrough = true;
 
         public bool SnapCameraToNearest = true;
@@ -26,6 +28,8 @@ namespace TSearch
         public int[] EdgeColor = { 255, 165, 0, 255 };
 
         public int[] FillColor = { 255, 165, 0, 60 };
+
+        public int[] GlowColor = { 255, 165, 0, 130 };
 
         public float Glow = 0.9f;
 
@@ -41,6 +45,11 @@ namespace TSearch
         public float FillG() => Chan(FillColor, 1, 165);
         public float FillB() => Chan(FillColor, 2, 0);
         public float FillA() => Chan(FillColor, 3, 60);
+
+        public float GlowR() => Chan(GlowColor, 0, 255);
+        public float GlowG() => Chan(GlowColor, 1, 165);
+        public float GlowB() => Chan(GlowColor, 2, 0);
+        public float GlowA() => Chan(GlowColor, 3, 130);
 
         public int EdgeColorRgba()
         {
@@ -65,6 +74,9 @@ namespace TSearch
             if (ClearDistanceBlocks < 0) ClearDistanceBlocks = 0;
             if (Glow < 0f) Glow = 0f;
             if (Glow > 1f) Glow = 1f;
+
+            HighlightStyle = HighlightStyle?.Trim().ToLowerInvariant();
+            if (HighlightStyle != "box") HighlightStyle = "glow";
         }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);
