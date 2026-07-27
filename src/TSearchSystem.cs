@@ -259,8 +259,7 @@ namespace TSearch
             dir.X /= len; dir.Y /= len; dir.Z /= len;
 
             float yaw = (float)Math.Atan2(dir.X, dir.Z);
-            float lookPitch = (float)Math.PI; // level with the horizon (VS pitch: horizon = pi)
-
+            float lookPitch = (float)Math.PI;
             player.CameraYaw = yaw;
             player.CameraPitch = lookPitch;
             capi.Input.MousePitch = lookPitch;
