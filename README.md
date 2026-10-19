@@ -24,15 +24,6 @@ Targets Vintage Story 1.22.0 – 1.22.7 (.NET 10).
 - Hotkey is rebindable in Options -> Controls.
 - Everything tunable via a JSON config.
 
-## Building
-
-```bat
-build.bat
-```
-
-On a successful build the mod is zipped and copied straight into your
-`VintagestoryData\Mods` folder.
-
 ## Configuration
 
 Edit `VintagestoryData\ModConfig\tsearch.json` 
