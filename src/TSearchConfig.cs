@@ -1,5 +1,4 @@
-#nullable disable
-namespace TSearch 
+namespace TSearch
 {
     public class TSearchConfig
     {
@@ -13,10 +12,6 @@ namespace TSearch
 
         public bool SearchFromHand = false;
 
-        public string HighlightStyle = "glow";
-
-        public bool SeeThrough = true;
-
         public bool SnapCameraToNearest = true;
 
         public bool CloseGuisOnSnap = true;
@@ -25,39 +20,26 @@ namespace TSearch
 
         public bool ChatFeedback = true;
 
-        public int[] EdgeColor = { 255, 165, 0, 255 };
-
-        public int[] FillColor = { 255, 165, 0, 60 };
-
         public int[] GlowColor = { 255, 165, 0, 130 };
 
         public float Glow = 0.9f;
 
+        public bool Debug = false;
+
         private static float Chan(int[] rgba, int i, int fallback)
             => (rgba != null && rgba.Length > i ? rgba[i] : fallback) / 255f;
-
-        public float EdgeR() => Chan(EdgeColor, 0, 255);
-        public float EdgeG() => Chan(EdgeColor, 1, 165);
-        public float EdgeB() => Chan(EdgeColor, 2, 0);
-        public float EdgeA() => Chan(EdgeColor, 3, 255);
-
-        public float FillR() => Chan(FillColor, 0, 255);
-        public float FillG() => Chan(FillColor, 1, 165);
-        public float FillB() => Chan(FillColor, 2, 0);
-        public float FillA() => Chan(FillColor, 3, 60);
 
         public float GlowR() => Chan(GlowColor, 0, 255);
         public float GlowG() => Chan(GlowColor, 1, 165);
         public float GlowB() => Chan(GlowColor, 2, 0);
         public float GlowA() => Chan(GlowColor, 3, 130);
 
-        public int EdgeColorRgba()
+        public int GlowColorRgba(int alpha)
         {
-            int r = Clamp255(EdgeColor, 0, 255);
-            int g = Clamp255(EdgeColor, 1, 165);
-            int b = Clamp255(EdgeColor, 2, 0);
-            int a = Clamp255(EdgeColor, 3, 255);
-            return Vintagestory.API.MathTools.ColorUtil.ToRgba(a, r, g, b);
+            int r = Clamp255(GlowColor, 0, 255);
+            int g = Clamp255(GlowColor, 1, 165);
+            int b = Clamp255(GlowColor, 2, 0);
+            return Vintagestory.API.MathTools.ColorUtil.ToRgba(alpha, r, g, b);
         }
 
         private static int Clamp255(int[] rgba, int i, int fallback)
@@ -74,9 +56,6 @@ namespace TSearch
             if (ClearDistanceBlocks < 0) ClearDistanceBlocks = 0;
             if (Glow < 0f) Glow = 0f;
             if (Glow > 1f) Glow = 1f;
-
-            HighlightStyle = HighlightStyle?.Trim().ToLowerInvariant();
-            if (HighlightStyle != "box") HighlightStyle = "glow";
         }
 
         private static int Clamp(int v, int min, int max) => v < min ? min : (v > max ? max : v);

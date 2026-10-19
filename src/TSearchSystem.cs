@@ -1,7 +1,7 @@
-#nullable disable
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using HarmonyLib;
 using Vintagestory.API.Client;
 using Vintagestory.API.Common;
 using Vintagestory.API.Common.Entities;
@@ -17,13 +17,18 @@ namespace TSearch
         private ICoreClientAPI capi;
         private TSearchConfig config;
         private ContainerHighlightRenderer renderer;
+        private Harmony harmony;
+        private static TSearchSystem instance;
+        private static bool overlayErrorLogged;
+        private LoadedTexture whiteTex;
+        private static int dbgPostfixCalls;
+        private readonly Dictionary<GuiElementItemSlotGridBase, string> dbgGrids = new();
+        private long dbgLastSummary;
 
         private bool isHighlighting;
         private AssetLocation searchCode;
         private BlockPos lastPlayerPos;
         private long highlightStartedAt;
-
-        private readonly List<GuiElementItemSlotGridBase> highlightedSlotGrids = new();
 
         private static readonly FieldInfo fInteractiveElements = typeof(GuiComposer)
             .GetField("interactiveElements", BindingFlags.NonPublic | BindingFlags.Instance);
@@ -43,6 +48,15 @@ namespace TSearch
             capi = api;
             config = LoadConfig(api);
             renderer = new ContainerHighlightRenderer(api, config);
+            instance = this;
+            harmony = new Harmony("tsearch");
+            MethodInfo target = AccessTools.Method(typeof(GuiElementItemSlotGridBase), nameof(GuiElementItemSlotGridBase.RenderInteractiveElements));
+            harmony.Patch(target, postfix: new HarmonyMethod(typeof(TSearchSystem), nameof(SlotGridRenderPostfix)));
+            Dbg($"startup: config ScanRange={config.ScanRange} ScanRangeVertical={config.ScanRangeVertical} " +
+                $"HighlightDurationMs={config.HighlightDurationMs} ClearDistanceBlocks={config.ClearDistanceBlocks} " +
+                $"GlowColor=[{string.Join(",", config.GlowColor ?? new int[0])}]");
+            Dbg($"startup: Harmony target={(target == null ? "NOT FOUND" : target.DeclaringType?.Name + "." + target.Name)}, " +
+                $"patched methods={string.Join(", ", harmony.GetPatchedMethods())}; container renderer CanRender={renderer.CanRender}");
 
             api.Input.RegisterHotKey(
                 "tsearch",
@@ -69,12 +83,14 @@ namespace TSearch
         {
             if (isHighlighting)
             {
+                Dbg("clear: T pressed again");
                 ClearAll();
                 Msg("[TSearch] Cleared.");
                 return true;
             }
 
             ItemStack targetStack = GetHoveredItemStack();
+            Dbg($"search: T pressed, hovered item={targetStack?.Collectible?.Code?.ToString() ?? "none"}");
             if (targetStack?.Collectible == null)
             {
                 Msg("[TSearch] Hover over an item in your inventory, hand, or handbook page, then press T.");
@@ -86,6 +102,8 @@ namespace TSearch
             lastPlayerPos = playerPos.Copy();
 
             List<BlockPos> matched = ScanForContainers(playerPos, searchCode);
+            Dbg($"search: scanned around {playerPos} (r={config.ScanRange}, v={config.ScanRangeVertical}), " +
+                $"{matched.Count} matching container(s): {string.Join(" ", matched.GetRange(0, Math.Min(10, matched.Count)))}");
 
             if (matched.Count == 0)
             {
@@ -97,7 +115,6 @@ namespace TSearch
             isHighlighting = true;
             highlightStartedAt = capi.ElapsedMilliseconds;
             ApplyContainerHighlights(matched);
-            HighlightSlotsInOpenGuis();
 
             if (config.PlaySound)
             {
@@ -142,7 +159,8 @@ namespace TSearch
 
         private void ApplyContainerHighlights(List<BlockPos> positions)
         {
-            if (config.SeeThrough && renderer.CanRender)
+            Dbg($"highlight: path={(renderer.CanRender ? "custom glow renderer" : "engine fallback (shader not ready)")}");
+            if (renderer.CanRender)
             {
                 renderer.SetPositions(positions);
                 return;
@@ -150,7 +168,7 @@ namespace TSearch
 
             var pairs = new List<BlockPos>();
             var colors = new List<int>();
-            int color = config.EdgeColorRgba();
+            int color = config.GlowColorRgba(255);
             foreach (BlockPos pos in positions)
             {
                 pairs.Add(pos.Copy());
@@ -195,37 +213,112 @@ namespace TSearch
             }
         }
 
-        private void HighlightSlotsInOpenGuis()
+        private static void SlotGridRenderPostfix(GuiElementItemSlotGridBase __instance)
         {
-            if (searchCode == null) return;
-            ClearSlotHighlights();
-
-            foreach (GuiElementItemSlotGridBase slotGrid in GetAllSlotGrids())
+            dbgPostfixCalls++;
+            try { instance?.RenderSlotOverlay(__instance); }
+            catch (Exception e)
             {
-                var slots = slotGrid.availableSlots;
-                if (slots == null) continue;
-
-                int matchKey = -1;
-                foreach (var kvp in slots)
-                {
-                    if (kvp.Value?.Itemstack?.Collectible?.Code == searchCode)
-                    {
-                        matchKey = kvp.Key;
-                        break;
-                    }
-                }
-
-                if (matchKey < 0) continue;
-                slotGrid.highlightSlotId = matchKey;
-                highlightedSlotGrids.Add(slotGrid);
+                if (overlayErrorLogged) return;
+                overlayErrorLogged = true;
+                instance?.capi.Logger.Error("[TSearch] Slot overlay failed: {0}", e);
             }
         }
 
-        private void ClearSlotHighlights()
+        private void RenderSlotOverlay(GuiElementItemSlotGridBase grid)
         {
-            foreach (GuiElementItemSlotGridBase grid in highlightedSlotGrids)
-                try { grid.highlightSlotId = -1; } catch { }
-            highlightedSlotGrids.Clear();
+            if (searchCode == null) return;
+            if (grid.SlotBounds == null || grid.renderedSlots == null)
+            {
+                DbgGrid(grid, $"skipped: SlotBounds={(grid.SlotBounds == null ? "null" : "ok")} renderedSlots={(grid.renderedSlots == null ? "null" : "ok")}");
+                return;
+            }
+
+            int matches = 0;
+            foreach (var kvp in grid.renderedSlots)
+                if (kvp.Value?.Itemstack?.Collectible?.Code == searchCode) matches++;
+            if (matches == 0)
+            {
+                DbgGrid(grid, $"no matches in {grid.renderedSlots.Count} slots");
+                return;
+            }
+
+            float pulse = 0.5f + 0.5f * (float)Math.Sin(capi.ElapsedMilliseconds / 300.0);
+            float r = config.GlowR(), g = config.GlowG(), bl = config.GlowB();
+            float fillA = 0.15f + 0.15f * pulse;
+            double t = Math.Max(3.0, GuiElement.scaled(3));
+            int tex = WhiteTexture().TextureId;
+
+            ElementBounds[] bounds = grid.SlotBounds;
+            int i = 0, drawn = 0;
+            string firstMatch = "-";
+            foreach (var kvp in grid.renderedSlots)
+            {
+                if (i >= bounds.Length) break;
+                ElementBounds b = bounds[i++];
+                if (b == null) continue;
+
+                double x = b.renderX, y = b.renderY, w = b.OuterWidth, h = b.OuterHeight;
+                if (kvp.Value?.Itemstack?.Collectible?.Code != searchCode)
+                {
+                    Quad(tex, x, y, w, h, 0, 0, 0, 0.6f);
+                    continue;
+                }
+
+                if (drawn == 0) firstMatch = $"x={x:F0} y={y:F0} {w:F0}x{h:F0}";
+                drawn++;
+                Quad(tex, x, y, w, h, r, g, bl, fillA);
+                Quad(tex, x, y, w, t, r, g, bl, 1);
+                Quad(tex, x, y + h - t, w, t, r, g, bl, 1);
+                Quad(tex, x, y + t, t, h - 2 * t, r, g, bl, 1);
+                Quad(tex, x + w - t, y + t, t, h - 2 * t, r, g, bl, 1);
+            }
+            DbgGrid(grid, $"slots={grid.renderedSlots.Count} bounds={bounds.Length} matches={matches} framed={drawn} " +
+                $"firstMatch={firstMatch} tex={tex}");
+        }
+
+        private void Quad(int tex, double x, double y, double w, double h, float r, float g, float b, float a)
+            => capi.Render.Render2DTexturePremultipliedAlpha(tex, x, y, w, h, 100, new Vec4f(r * a, g * a, b * a, a));
+
+        private LoadedTexture WhiteTexture()
+        {
+            if (whiteTex != null && whiteTex.TextureId != 0) return whiteTex;
+            using var surface = new Cairo.ImageSurface(Cairo.Format.Argb32, 4, 4);
+            using (var ctx = new Cairo.Context(surface))
+            {
+                ctx.SetSourceRGBA(1, 1, 1, 1);
+                ctx.Paint();
+            }
+            whiteTex ??= new LoadedTexture(capi);
+            capi.Gui.LoadOrUpdateCairoTexture(surface, false, ref whiteTex);
+            return whiteTex;
+        }
+
+        private void Dbg(string msg)
+        {
+            if (config?.Debug == true) capi.Logger.Notification("[TSearch debug] " + msg);
+        }
+
+        private void DbgGrid(GuiElementItemSlotGridBase grid, string info)
+        {
+            if (config?.Debug == true) dbgGrids[grid] = info;
+        }
+
+        private void DbgOverlaySummary()
+        {
+            dbgLastSummary = capi.ElapsedMilliseconds;
+            var open = new List<string>();
+            int gridCount = 0;
+            foreach (GuiDialog d in capi.Gui.OpenedGuis)
+                if (d?.DialogType == EnumDialogType.Dialog) open.Add(d.GetType().Name);
+            foreach (GuiElementItemSlotGridBase g in GetAllSlotGrids()) gridCount++;
+
+            Dbg($"overlay: search={searchCode?.ToString() ?? "none"} hook calls last second={dbgPostfixCalls}, " +
+                $"open windows=[{string.Join(", ", open)}], slot grids found={gridCount}");
+            foreach (var kv in dbgGrids)
+                Dbg($"overlay:   {kv.Key.GetType().Name}#{kv.Key.GetHashCode()}: {kv.Value}");
+            dbgPostfixCalls = 0;
+            dbgGrids.Clear();
         }
 
         private static BlockPos FindNearest(List<BlockPos> positions, BlockPos from)
@@ -260,6 +353,7 @@ namespace TSearch
 
             float yaw = (float)Math.Atan2(dir.X, dir.Z);
             float lookPitch = (float)Math.PI;
+
             player.CameraYaw = yaw;
             player.CameraPitch = lookPitch;
             capi.Input.MousePitch = lookPitch;
@@ -275,7 +369,6 @@ namespace TSearch
                 if (dialog.DialogType != EnumDialogType.Dialog) continue;
                 try { dialog.TryClose(); } catch { }
             }
-            ClearSlotHighlights();
         }
 
         private ItemStack GetHoveredItemStack()
@@ -332,8 +425,11 @@ namespace TSearch
         {
             if (!isHighlighting) return;
 
+            if (config.Debug && capi.ElapsedMilliseconds - dbgLastSummary >= 1000) DbgOverlaySummary();
+
             if (capi.ElapsedMilliseconds - highlightStartedAt > config.HighlightDurationMs)
             {
+                Dbg($"clear: timed out after {config.HighlightDurationMs} ms");
                 ClearAll();
                 return;
             }
@@ -345,18 +441,16 @@ namespace TSearch
                 double clearSq = clearDist * clearDist;
                 if (cur.DistanceSqTo(lastPlayerPos.X, lastPlayerPos.Y, lastPlayerPos.Z) > clearSq)
                 {
+                    Dbg($"clear: walked more than {clearDist} blocks from {lastPlayerPos}");
                     ClearAll();
                     return;
                 }
             }
-
-            HighlightSlotsInOpenGuis();
         }
 
         private void ClearAll()
         {
             ClearContainerHighlights();
-            ClearSlotHighlights();
             isHighlighting = false;
             searchCode = null;
         }
@@ -369,7 +463,10 @@ namespace TSearch
         public override void Dispose()
         {
             if (capi != null && isHighlighting) ClearAll();
+            harmony?.UnpatchAll("tsearch");
+            instance = null;
             renderer?.Dispose();
+            whiteTex?.Dispose();
             renderer = null;
             base.Dispose();
         }

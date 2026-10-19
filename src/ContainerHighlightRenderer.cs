@@ -1,4 +1,3 @@
-#nullable disable
 using System;
 using System.Collections.Generic;
 using Vintagestory.API.Client;
@@ -16,15 +15,13 @@ namespace TSearch
 
         private IShaderProgram prog;
         private MeshRef fillMesh;
-        private MeshRef edgeMesh;
         private readonly Matrixf modelMat = new();
+
         private readonly Dictionary<int, MeshRef> shapeCache = new();
         private volatile List<BlockPos> positions = new();
 
-        public double RenderOrder => 0.5;
+        public double RenderOrder => 1.0;
         public int RenderRange => 128;
-
-        private bool GlowStyle => config.HighlightStyle != "box";
 
         public bool ShaderReady => prog != null && !prog.LoadError && !prog.Disposed;
 
@@ -84,19 +81,9 @@ namespace TSearch
             prog.UniformMatrix("projectionMatrix", rpi.CurrentProjectionMatrix);
             prog.UniformMatrix("modelViewMatrix", rpi.CameraMatrixOriginf);
             prog.Uniform("glow", config.Glow * pulse);
-            rpi.LineWidth = 2f;
 
-            if (GlowStyle)
-            {
-                var fill = new Vec4f(config.GlowR(), config.GlowG(), config.GlowB(), config.GlowA());
-                foreach (BlockPos bp in pos) RenderShapeGlow(rpi, ba, bp, camPos, fill);
-            }
-            else
-            {
-                var fill = new Vec4f(config.FillR(), config.FillG(), config.FillB(), config.FillA());
-                var edge = new Vec4f(config.EdgeR(), config.EdgeG(), config.EdgeB(), config.EdgeA());
-                foreach (BlockPos bp in pos) DrawBox(rpi, bp, FullCube, camPos, fill, edge, true);
-            }
+            var fill = new Vec4f(config.GlowR(), config.GlowG(), config.GlowB(), config.GlowA());
+            foreach (BlockPos bp in pos) RenderShapeGlow(rpi, ba, bp, camPos, fill);
 
             prog.Stop();
 
@@ -123,14 +110,14 @@ namespace TSearch
             Cuboidf[] boxes = block?.GetSelectionBoxes(ba, bp);
             if (boxes == null || boxes.Length == 0)
             {
-                DrawBox(rpi, bp, FullCube, camPos, fill, default, false);
+                DrawBox(rpi, bp, FullCube, camPos, fill);
                 return;
             }
             foreach (Cuboidf box in boxes)
-                DrawBox(rpi, bp, box, camPos, fill, default, false);
+                DrawBox(rpi, bp, box, camPos, fill);
         }
 
-        private void DrawBox(IRenderAPI rpi, BlockPos bp, Cuboidf box, Vec3d camPos, Vec4f fill, Vec4f edge, bool withEdge)
+        private void DrawBox(IRenderAPI rpi, BlockPos bp, Cuboidf box, Vec3d camPos, Vec4f fill)
         {
             const float m = 0.02f;
 
@@ -144,12 +131,6 @@ namespace TSearch
 
             prog.Uniform("rgbaIn", fill);
             rpi.RenderMesh(fillMesh);
-
-            if (withEdge)
-            {
-                prog.Uniform("rgbaIn", edge);
-                rpi.RenderMesh(edgeMesh);
-            }
         }
 
         private MeshRef GetShapeMesh(Block block)
@@ -218,25 +199,12 @@ namespace TSearch
             foreach (int i in tri) fill.AddIndex(i);
             fill.SetMode(EnumDrawMode.Triangles);
             fillMesh = capi.Render.UploadMesh(fill);
-
-            var edge = new MeshData(8, 24, false, false, true, false);
-            foreach (float[] v in c) edge.AddVertexSkipTex(v[0], v[1], v[2], ColorUtil.WhiteArgb);
-            int[] lines =
-            {
-                0,1, 1,2, 2,3, 3,0,
-                4,5, 5,6, 6,7, 7,4,
-                0,4, 1,5, 2,6, 3,7,
-            };
-            foreach (int i in lines) edge.AddIndex(i);
-            edge.SetMode(EnumDrawMode.Lines);
-            edgeMesh = capi.Render.UploadMesh(edge);
         }
 
         public void Dispose()
         {
             capi.Event.ReloadShader -= LoadShader;
             capi.Render.DeleteMesh(fillMesh);
-            capi.Render.DeleteMesh(edgeMesh);
             foreach (MeshRef m in shapeCache.Values)
                 if (m != null) capi.Render.DeleteMesh(m);
             shapeCache.Clear();

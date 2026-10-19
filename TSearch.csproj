@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
+    <Nullable>disable</Nullable>
     <AssemblyName>TSearch</AssemblyName>
     <RootNamespace>TSearch</RootNamespace>
     <Optimize>true</Optimize>
@@ -29,6 +29,14 @@
       <HintPath>$(GameDirectory)\VintagestoryLib.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(GameDirectory)\Lib\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="cairo-sharp">
+      <HintPath>$(GameDirectory)\Lib\cairo-sharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="VSSurvivalMod">
       <HintPath>$(GameDirectory)\Mods\VSSurvivalMod.dll</HintPath>
       <Private>false</Private>
@@ -38,6 +46,7 @@
   <ItemGroup Condition="'$(UseLocalGameDlls)' != 'true'">
     <PackageReference Include="VintagestoryAPI" Version="1.22.*" />
     <PackageReference Include="VSSurvivalMod" Version="1.22.*" />
+    <PackageReference Include="Lib.Harmony" Version="2.3.*" />
   </ItemGroup>
 
   <Target Name="PackMod" AfterTargets="Build">
